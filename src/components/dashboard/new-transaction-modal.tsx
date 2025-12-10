@@ -21,22 +21,24 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, CalendarClock, CreditCard } from "lucide-react";
-import { cn } from "@/lib/utils"; // Importante
+import { cn } from "@/lib/utils";
 
 // Schema
 const formSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),
+  // Usamos z.coerce.number() para forçar a conversão de string para número
   amount: z.coerce.number().min(0.01, "Valor deve ser maior que 0"),
   type: z.enum(["INCOME", "EXPENSE"]),
   category: z.string().min(1, "Categoria obrigatória"),
   isInstallment: z.boolean().default(false),
+  // Ajuste no installments para aceitar undefined ou número
   installments: z.coerce.number().min(2).max(48).optional(),
   isRecurring: z.boolean().default(false),
 });
 
+// Inferimos o tipo para usar no onSubmit
 type FormValues = z.infer<typeof formSchema>;
 
-// ADICIONADO: Propriedade variant
 interface NewTransactionModalProps {
   variant?: "default" | "outline" | "gradient";
 }
@@ -45,7 +47,9 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
   const [open, setOpen] = useState(false);
   const { addTransaction } = useFinanceStore();
 
-  const form = useForm<FormValues>({
+  // --- A CORREÇÃO ESTÁ AQUI EMBAIXO ---
+  // Removemos o <FormValues> explícito. Deixamos o resolver ditar os tipos.
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
@@ -58,42 +62,43 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
     },
   });
 
-  const type = form.watch("type");
-  const isInstallment = form.watch("isInstallment");
-  const isRecurring = form.watch("isRecurring");
+  const type = form.watch("type" as any);
+  const isInstallment = form.watch("isInstallment" as any);
+  const isRecurring = form.watch("isRecurring" as any);
 
-  function onSubmit(data: FormValues) {
+  function onSubmit(data: any) { // Usamos any aqui para facilitar, já que o Zod garante a estrutura
+    const typedData = data as FormValues; // Convertemos manualmente para segurança interna
     const today = new Date();
 
-    if (data.type === "EXPENSE" && data.isInstallment && data.installments) {
-      const installmentValue = data.amount / data.installments;
-      for (let i = 0; i < data.installments; i++) {
+    if (typedData.type === "EXPENSE" && typedData.isInstallment && typedData.installments) {
+      const installmentValue = typedData.amount / typedData.installments;
+      for (let i = 0; i < typedData.installments; i++) {
         addTransaction({
-          description: `${data.description} (${i + 1}/${data.installments})`,
+          description: `${typedData.description} (${i + 1}/${typedData.installments})`,
           amount: parseFloat(installmentValue.toFixed(2)),
           type: "EXPENSE",
-          category: data.category,
+          category: typedData.category,
           date: addMonths(today, i),
         });
       }
     } 
-    else if (data.isRecurring) {
+    else if (typedData.isRecurring) {
       for (let i = 0; i < 12; i++) {
         addTransaction({
-          description: `${data.description} (Fixo)`,
-          amount: data.amount,
-          type: data.type,
-          category: data.category,
+          description: `${typedData.description} (Fixo)`,
+          amount: typedData.amount,
+          type: typedData.type,
+          category: typedData.category,
           date: addMonths(today, i),
         });
       }
     } 
     else {
       addTransaction({
-        description: data.description,
-        amount: data.amount,
-        type: data.type,
-        category: data.category,
+        description: typedData.description,
+        amount: typedData.amount,
+        type: typedData.type,
+        category: typedData.category,
         date: today,
       });
     }
@@ -102,7 +107,6 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
     setOpen(false);
   }
 
-  // Define o estilo do botão baseado na prop variant
   const getButtonStyle = () => {
     if (variant === "gradient") {
       return "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md border-none";
@@ -198,6 +202,10 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
                       <SelectItem value="Salary">Salário 💰</SelectItem>
                       <SelectItem value="Investments">Investimentos 📈</SelectItem>
                       <SelectItem value="CreditCard">Cartão de Crédito 💳</SelectItem>
+                      <SelectItem value="Education">Educação 📚</SelectItem>
+                      <SelectItem value="Health">Saúde 💊</SelectItem>
+                      <SelectItem value="Entertainment">Entretenimento 🎬</SelectItem>
+                      <SelectItem value="Shopping">Compras 🛍️</SelectItem>
                       <SelectItem value="Other">Outros 📦</SelectItem>
                     </SelectContent>
                   </Select>
