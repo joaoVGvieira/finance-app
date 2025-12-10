@@ -26,17 +26,14 @@ import { cn } from "@/lib/utils";
 // Schema
 const formSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),
-  // Usamos z.coerce.number() para forçar a conversão de string para número
   amount: z.coerce.number().min(0.01, "Valor deve ser maior que 0"),
   type: z.enum(["INCOME", "EXPENSE"]),
   category: z.string().min(1, "Categoria obrigatória"),
   isInstallment: z.boolean().default(false),
-  // Ajuste no installments para aceitar undefined ou número
   installments: z.coerce.number().min(2).max(48).optional(),
   isRecurring: z.boolean().default(false),
 });
 
-// Inferimos o tipo para usar no onSubmit
 type FormValues = z.infer<typeof formSchema>;
 
 interface NewTransactionModalProps {
@@ -47,8 +44,6 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
   const [open, setOpen] = useState(false);
   const { addTransaction } = useFinanceStore();
 
-  // --- A CORREÇÃO ESTÁ AQUI EMBAIXO ---
-  // Removemos o <FormValues> explícito. Deixamos o resolver ditar os tipos.
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -66,8 +61,8 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
   const isInstallment = form.watch("isInstallment" as any);
   const isRecurring = form.watch("isRecurring" as any);
 
-  function onSubmit(data: any) { // Usamos any aqui para facilitar, já que o Zod garante a estrutura
-    const typedData = data as FormValues; // Convertemos manualmente para segurança interna
+  function onSubmit(data: any) {
+    const typedData = data as FormValues;
     const today = new Date();
 
     if (typedData.type === "EXPENSE" && typedData.isInstallment && typedData.installments) {
@@ -133,6 +128,7 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             
+            {/* CORREÇÃO 1: Campo Description (Text) */}
             <FormField
               control={form.control}
               name="description"
@@ -140,7 +136,11 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
                 <FormItem>
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: iPhone 15, Aluguel..." {...field} />
+                    <Input 
+                      placeholder="Ex: iPhone 15, Aluguel..." 
+                      {...field} 
+                      value={field.value as string} // Força string
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -148,6 +148,7 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
             />
 
             <div className="grid grid-cols-2 gap-4">
+              {/* CORREÇÃO 2: Campo Amount (Number) - O erro estava aqui */}
               <FormField
                 control={form.control}
                 name="amount"
@@ -155,7 +156,13 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
                   <FormItem>
                     <FormLabel>Valor Total (R$)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder="0.00" 
+                        {...field}
+                        value={field.value as number} // Força number
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -167,7 +174,7 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value as string}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue />
@@ -189,7 +196,7 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Categoria</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value as string}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
@@ -230,7 +237,7 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
                           <FormDescription>Divide o valor nos próximos meses</FormDescription>
                         </div>
                         <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          <Switch checked={field.value as boolean} onCheckedChange={field.onChange} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -245,7 +252,14 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
                       <FormItem>
                         <FormLabel>Número de Parcelas</FormLabel>
                         <FormControl>
-                          <Input type="number" min={2} max={48} {...field} />
+                          {/* CORREÇÃO 3: Campo Installments (Number) */}
+                          <Input 
+                            type="number" 
+                            min={2} 
+                            max={48} 
+                            {...field}
+                            value={field.value as number} // Força number
+                          />
                         </FormControl>
                         <FormDescription className="text-xs text-blue-600">
                            Serão criados lançamentos futuros automaticamente.
@@ -268,7 +282,7 @@ export function NewTransactionModal({ variant = "default" }: NewTransactionModal
                           <FormDescription>Repete todo mês (Ex: Netflix)</FormDescription>
                         </div>
                         <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          <Switch checked={field.value as boolean} onCheckedChange={field.onChange} />
                         </FormControl>
                       </FormItem>
                     )}
