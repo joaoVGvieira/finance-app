@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod"; // Importamos Zod aqui direto para facilitar
+import { z } from "zod";
 import { useFinanceStore } from "../../store/useFinanceStore";
-import { addMonths } from "date-fns"; // Necessário instalar date-fns
+import { addMonths } from "date-fns";
 
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch"; // Vamos precisar do Switch
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -21,22 +21,27 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, CalendarClock, CreditCard } from "lucide-react";
+import { cn } from "@/lib/utils"; // Importante
 
-// Schema expandido para suportar parcelas
+// Schema
 const formSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),
   amount: z.coerce.number().min(0.01, "Valor deve ser maior que 0"),
   type: z.enum(["INCOME", "EXPENSE"]),
   category: z.string().min(1, "Categoria obrigatória"),
-  // Novos campos
   isInstallment: z.boolean().default(false),
-  installments: z.coerce.number().min(2).max(48).optional(), // De 2 a 48x
+  installments: z.coerce.number().min(2).max(48).optional(),
   isRecurring: z.boolean().default(false),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function NewTransactionModal() {
+// ADICIONADO: Propriedade variant
+interface NewTransactionModalProps {
+  variant?: "default" | "outline" | "gradient";
+}
+
+export function NewTransactionModal({ variant = "default" }: NewTransactionModalProps) {
   const [open, setOpen] = useState(false);
   const { addTransaction } = useFinanceStore();
 
@@ -53,7 +58,6 @@ export function NewTransactionModal() {
     },
   });
 
-  // Monitorar campos para mostrar/esconder opções
   const type = form.watch("type");
   const isInstallment = form.watch("isInstallment");
   const isRecurring = form.watch("isRecurring");
@@ -61,24 +65,19 @@ export function NewTransactionModal() {
   function onSubmit(data: FormValues) {
     const today = new Date();
 
-    // LÓGICA DE PARCELAMENTO OU RECORRÊNCIA
     if (data.type === "EXPENSE" && data.isInstallment && data.installments) {
-      // Cria X transações futuras
-      const installmentValue = data.amount / data.installments; // Divide o valor total? Ou o valor é por parcela?
-      // GERALMENTE o usuário digita o valor TOTAL da compra. Vamos dividir.
-      
+      const installmentValue = data.amount / data.installments;
       for (let i = 0; i < data.installments; i++) {
         addTransaction({
           description: `${data.description} (${i + 1}/${data.installments})`,
-          amount: parseFloat(installmentValue.toFixed(2)), // Arredonda
+          amount: parseFloat(installmentValue.toFixed(2)),
           type: "EXPENSE",
           category: data.category,
-          date: addMonths(today, i), // Adiciona 1 mês a cada loop
+          date: addMonths(today, i),
         });
       }
     } 
     else if (data.isRecurring) {
-      // Se for fixo, vamos gerar para os próximos 12 meses por conveniência
       for (let i = 0; i < 12; i++) {
         addTransaction({
           description: `${data.description} (Fixo)`,
@@ -90,7 +89,6 @@ export function NewTransactionModal() {
       }
     } 
     else {
-      // Transação normal (única)
       addTransaction({
         description: data.description,
         amount: data.amount,
@@ -104,12 +102,23 @@ export function NewTransactionModal() {
     setOpen(false);
   }
 
+  // Define o estilo do botão baseado na prop variant
+  const getButtonStyle = () => {
+    if (variant === "gradient") {
+      return "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md border-none";
+    }
+    if (variant === "outline") {
+      return "border-dashed border-2 border-gray-300 hover:border-purple-500 text-gray-500 hover:text-purple-600 bg-transparent w-full";
+    }
+    return "bg-blue-600 hover:bg-blue-700 text-white";
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-lg">
+        <Button className={cn("gap-2 font-semibold", getButtonStyle())}>
           <PlusCircle className="h-4 w-4" />
-          Nova Transação
+          {variant === "outline" ? "Adicionar Primeira Transação" : "Nova Transação"}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
@@ -120,7 +129,6 @@ export function NewTransactionModal() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             
-            {/* Descrição */}
             <FormField
               control={form.control}
               name="description"
@@ -136,7 +144,6 @@ export function NewTransactionModal() {
             />
 
             <div className="grid grid-cols-2 gap-4">
-              {/* Valor */}
               <FormField
                 control={form.control}
                 name="amount"
@@ -150,7 +157,6 @@ export function NewTransactionModal() {
                 )}
               />
 
-              {/* Tipo */}
               <FormField
                 control={form.control}
                 name="type"
@@ -173,7 +179,6 @@ export function NewTransactionModal() {
               />
             </div>
 
-            {/* Categoria */}
             <FormField
               control={form.control}
               name="category"
@@ -201,11 +206,9 @@ export function NewTransactionModal() {
               )}
             />
 
-            {/* --- SEÇÃO AVANÇADA DE PARCELAS/FIXO --- */}
             <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg space-y-4 border">
                <p className="text-sm font-medium text-muted-foreground mb-2">Opções Avançadas</p>
                
-               {/* Switch: Parcelado (Só aparece se for Despesa e não for Fixo) */}
                {type === "EXPENSE" && !isRecurring && (
                  <FormField
                     control={form.control}
@@ -226,7 +229,6 @@ export function NewTransactionModal() {
                  />
                )}
 
-               {/* Input: Qtd Parcelas (Só aparece se Switch Parcelado estiver ON) */}
                {isInstallment && (
                  <FormField
                     control={form.control}
@@ -245,7 +247,6 @@ export function NewTransactionModal() {
                  />
                )}
 
-               {/* Switch: Fixo (Só aparece se não for parcelado) */}
                {!isInstallment && (
                  <FormField
                     control={form.control}
@@ -256,7 +257,7 @@ export function NewTransactionModal() {
                           <FormLabel className="flex items-center gap-2">
                              <CalendarClock className="w-4 h-4 text-orange-500"/> Despesa Fixa?
                           </FormLabel>
-                          <FormDescription>Repete todo mês (Ex: Netflix, Aluguel)</FormDescription>
+                          <FormDescription>Repete todo mês (Ex: Netflix)</FormDescription>
                         </div>
                         <FormControl>
                           <Switch checked={field.value} onCheckedChange={field.onChange} />

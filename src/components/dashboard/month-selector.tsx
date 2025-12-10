@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils"; // Importante para corrigir o erro
 
 interface MonthSelectorProps {
   currentDate: Date;
   onMonthChange: (date: Date) => void;
+  className?: string; // <--- A CORREÇÃO ESTÁ AQUI
 }
 
-export function MonthSelector({ currentDate, onMonthChange }: MonthSelectorProps) {
+export function MonthSelector({ currentDate, onMonthChange, className }: MonthSelectorProps) {
   
   function handlePrevious() {
     onMonthChange(subMonths(currentDate, 1));
@@ -21,7 +23,8 @@ export function MonthSelector({ currentDate, onMonthChange }: MonthSelectorProps
   }
 
   return (
-    <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-lg border shadow-sm">
+    // Aqui usamos o cn() para misturar as classes originais com as novas
+    <div className={cn("flex items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-lg border shadow-sm", className)}>
       <Button variant="ghost" size="icon" onClick={handlePrevious}>
         <ChevronLeft className="h-4 w-4" />
       </Button>
